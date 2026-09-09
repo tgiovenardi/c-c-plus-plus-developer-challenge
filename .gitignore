@@ -30,3 +30,9 @@
 *.exe
 *.out
 *.app
+
+# Build directory
+hmi-calculator-challenge/build/
+
+# Local settings
+.vscode/
