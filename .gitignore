@@ -34,5 +34,8 @@
 # Build directory
 hmi-calculator-challenge/build/
 
+# Runtime operation log
+hmi-calculator-challenge/operation.log
+
 # Local settings
 .vscode/
