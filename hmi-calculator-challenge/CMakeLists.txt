@@ -21,6 +21,24 @@ target_include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
+add_library(
+    hmi
+    STATIC
+    src/hmi.c
+)
+
+target_include_directories(
+    hmi
+    PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_link_libraries(
+    hmi
+    PRIVATE
+    calculator
+)
+
 add_executable(
     hmi_calculator
     main.c
@@ -29,5 +47,5 @@ add_executable(
 target_link_libraries(
     hmi_calculator
     PRIVATE
-    calculator
+    hmi
 )
