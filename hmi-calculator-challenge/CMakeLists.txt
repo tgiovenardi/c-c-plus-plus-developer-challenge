@@ -22,6 +22,18 @@ target_include_directories(
 )
 
 add_library(
+    operation_log
+    STATIC
+    src/operation_log.c
+)
+
+target_include_directories(
+    operation_log
+    PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+add_library(
     hmi
     STATIC
     src/hmi.c
@@ -37,6 +49,7 @@ target_link_libraries(
     hmi
     PRIVATE
     calculator
+    operation_log
 )
 
 add_executable(

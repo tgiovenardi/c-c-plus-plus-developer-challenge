@@ -12,12 +12,6 @@ typedef enum
     CALCULATOR_ERROR_INVALID_DIMENSION
 } CalculatorStatus;
 
-typedef enum
-{
-    CALCULATOR_OPERATION_ADD = 0,
-    CALCULATOR_OPERATION_DETERMINANT
-} CalculatorOperation;
-
 /*
  * Adds two scalar values.
  *

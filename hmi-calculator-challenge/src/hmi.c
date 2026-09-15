@@ -8,8 +8,10 @@
 #include <string.h>
 
 #include "calculator.h"
+#include "operation_log.h"
 
 #define HMI_INPUT_BUFFER_SIZE 64U
+#define HMI_MENU_OPTION_EXIT 0L
 
 typedef enum
 {
@@ -18,22 +20,67 @@ typedef enum
     HMI_INPUT_END = 2
 } HmiInputStatus;
 
-typedef enum
+typedef HmiInputStatus (*HmiOperationHandler)(void);
+
+typedef struct
 {
-    HMI_MENU_OPTION_EXIT = 0,
-    HMI_MENU_OPTION_ADD = 1,
-    HMI_MENU_OPTION_DETERMINANT = 2
-} HmiMenuOption;
+    long option;
+    const char *name;
+    HmiOperationHandler handler;
+} HmiOperation;
+
+/*
+ * Operation handlers are declared before the operation table so they can
+ * be registered without exposing them outside this source file.
+ */
+static HmiInputStatus run_addition(void);
+static HmiInputStatus run_determinant(void);
+
+/*
+ * Available operations are registered in this table.
+ *
+ * To add a new operation, implement its handler and register a new entry
+ * here. The menu and operation dispatch do not need additional changes.
+ */
+static const HmiOperation HMI_OPERATIONS[] =
+{
+    {1L, "Addition", run_addition},
+    {2L, "Determinant", run_determinant}
+};
+
+#define HMI_OPERATION_COUNT \
+    (sizeof(HMI_OPERATIONS) / sizeof(HMI_OPERATIONS[0]))
 
 static void print_menu(void)
 {
     puts("");
     puts("Dynamox HMI Calculator");
     puts("");
-    puts("1 - Addition");
-    puts("2 - Determinant");
-    puts("0 - Exit");
+
+    for (size_t i = 0U; i < HMI_OPERATION_COUNT; ++i)
+    {
+        printf(
+            "%ld - %s\n",
+            HMI_OPERATIONS[i].option,
+            HMI_OPERATIONS[i].name
+        );
+    }
+
+    printf("%ld - Exit\n", HMI_MENU_OPTION_EXIT);
     puts("");
+}
+
+static const HmiOperation *find_operation(long option)
+{
+    for (size_t i = 0U; i < HMI_OPERATION_COUNT; ++i)
+    {
+        if (HMI_OPERATIONS[i].option == option)
+        {
+            return &HMI_OPERATIONS[i];
+        }
+    }
+
+    return NULL;
 }
 
 static HmiInputStatus read_line(
@@ -273,6 +320,22 @@ static HmiInputStatus run_addition(void)
 
     printf("Result: %.15g\n", result);
 
+    /*
+     * Logging is intentionally independent from the calculation.
+     * A logging failure must not prevent the calculator from working.
+     */
+    const OperationLogStatus log_status =
+        operation_log_addition(
+            first_value,
+            second_value,
+            result
+        );
+
+    if (log_status != OPERATION_LOG_OK)
+    {
+        puts("Warning: operation could not be written to log.");
+    }
+
     return HMI_INPUT_OK;
 }
 
@@ -293,7 +356,6 @@ static HmiInputStatus run_determinant(void)
     {
         return HMI_INPUT_END;
     }
-
 
     for (size_t row = 0U; row < dimension; ++row)
     {
@@ -333,6 +395,22 @@ static HmiInputStatus run_determinant(void)
 
     printf("Determinant: %.15g\n", result);
 
+    /*
+     * Store the successful operation in the persistent log.
+     * Logging failure is reported but does not invalidate the calculation.
+     */
+    const OperationLogStatus log_status =
+        operation_log_determinant(
+            matrix,
+            dimension,
+            result
+        );
+
+    if (log_status != OPERATION_LOG_OK)
+    {
+        puts("Warning: operation could not be written to log.");
+    }
+
     return HMI_INPUT_OK;
 }
 
@@ -356,37 +434,30 @@ int hmi_run(void)
 
         if (input_status != HMI_INPUT_OK)
         {
-            puts("Invalid input. Enter 0, 1 or 2.");
+            puts("Invalid input. Enter a valid menu option.");
             continue;
         }
 
-        switch (option)
+        if (option == HMI_MENU_OPTION_EXIT)
         {
-            case HMI_MENU_OPTION_EXIT:
-                puts("Exiting calculator.");
-                return 0;
+            puts("Exiting calculator.");
+            return 0;
+        }
 
-            case HMI_MENU_OPTION_ADD:
-                if (run_addition() == HMI_INPUT_END)
-                {
-                    puts("");
-                    puts("Input ended.");
-                    return 0;
-                }
-                break;
+        const HmiOperation *operation =
+            find_operation(option);
 
-            case HMI_MENU_OPTION_DETERMINANT:
-                if (run_determinant() == HMI_INPUT_END)
-                {
-                    puts("");
-                    puts("Input ended.");
-                    return 0;
-                }
-                break;
+        if (operation == NULL)
+        {
+            puts("Invalid operation. Select one of the available options.");
+            continue;
+        }
 
-            default:
-                puts("Invalid operation. Enter 0, 1 or 2.");
-                break;
+        if (operation->handler() == HMI_INPUT_END)
+        {
+            puts("");
+            puts("Input ended.");
+            return 0;
         }
     }
 }
