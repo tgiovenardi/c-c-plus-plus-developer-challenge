@@ -49,3 +49,23 @@ target_link_libraries(
     PRIVATE
     hmi
 )
+
+include(CTest)
+
+if(BUILD_TESTING)
+    add_executable(
+        calculator_tests
+        tests/calculator_tests.c
+    )
+
+    target_link_libraries(
+        calculator_tests
+        PRIVATE
+        calculator
+    )
+
+    add_test(
+        NAME calculator_tests
+        COMMAND calculator_tests
+    )
+endif()
